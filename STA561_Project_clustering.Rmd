@@ -17,22 +17,41 @@ colnames(music)[69:70] = c("lat", "lon")
 ```
 
 ```{r}
-explain_var = rep(NA, 20)
-for (i in 1:20) {
+n = 100
+explain_var = rep(NA, n)
+sil = rep(NA, n)
+for (i in 1:n) {
   clust = kmeans(music[, -c(69:70)], i, iter.max = 100)
+  sil[i] = mean(silhouette(clust$cluster, dist(x = music[, -c(69:70)])))
   explain_var[i] = clust$tot.withinss / clust$totss
 }
-plot(1:20, explain_var, type = "b")
+par(mar=c(5, 4, 4, 6))
+plot(1:n, explain_var, type = "b", main = "plot_title", xlab = "Number of Clusters", ylab = "Within groups sum of squares")
+par(new = T)
+plot(1:n, sil, type = "l", lty = 2, col = "red", axes = F, xlab = NA, ylab = NA)
+axis(side = 4)
+mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
 ```{r}
 library(mclust)
-BIC = rep(NA, 20)
-for (i in 1:20) {
+n = 30
+BIC = rep(NA, n)
+sil = rep(NA, n)
+for (i in 1:n) {
   model = Mclust(music[, -c(69:70)], G = i, model = "EII")
   BIC[i] = model$bic
+  sil[i] = mean(silhouette(model$classification, dist(x = music[, -c(69:70)])))
 }
-plot(1:20, -BIC)
-model = Mclust(music[, -c(69:70)], G = 9, model = "EII")
+par(mar=c(5, 4, 4, 6))
+plot(1:n, BIC, type = "b", main = "plot_title", xlab = "Number of Clusters", ylab = "BIC")
+par(new = T)
+plot(1:n, sil, type = "l", lty = 2, col = "red", axes = F, xlab = NA, ylab = NA)
+axis(side = 4)
+mtext("Average Silhouette width", side = 4, line = 3)
+```
+
+```{r}
+fpc::clusterboot(dist(music[, -c(69:70)]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
 ```
 
