@@ -34,6 +34,16 @@ mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
 ```{r}
+library(factoextra)
+hclust_model = agnes(x = music[, -c(69:70)], method = "ward")
+fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, main = "hclust", horiz = T, ylab = "Height", show_labels = F)
+fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "circular", main = "hclust", ylab = "Height", show_labels = F)
+fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "phylogenic", main = "hclust", ylab = "Height", show_labels = F)
+
+```
+
+
+```{r}
 library(mclust)
 n = 30
 BIC = rep(NA, n)
