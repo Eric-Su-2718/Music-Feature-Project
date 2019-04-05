@@ -1,0 +1,38 @@
+---
+title: "STA561 Final Project-Clustering"
+author: "Eric Su"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r, message=FALSE}
+library(readr)
+music = read_csv("data/default_features_1059_tracks.txt", col_names = FALSE)
+colnames(music)[69:70] = c("lat", "lon")
+```
+
+```{r}
+explain_var = rep(NA, 20)
+for (i in 1:20) {
+  clust = kmeans(music[, -c(69:70)], i, iter.max = 100)
+  explain_var[i] = clust$tot.withinss / clust$totss
+}
+plot(1:20, explain_var, type = "b")
+```
+
+```{r}
+library(mclust)
+BIC = rep(NA, 20)
+for (i in 1:20) {
+  model = Mclust(music[, -c(69:70)], G = i, model = "EII")
+  BIC[i] = model$bic
+}
+plot(1:20, -BIC)
+model = Mclust(music[, -c(69:70)], G = 9, model = "EII")
+```
+
