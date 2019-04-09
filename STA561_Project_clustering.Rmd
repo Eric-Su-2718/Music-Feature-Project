@@ -12,8 +12,9 @@ library(tidyverse)
 
 ```{r, message=FALSE}
 library(readr)
-music = read_csv("data/default_features_1059_tracks.txt", col_names = FALSE)
-colnames(music)[69:70] = c("lat", "lon")
+music = read_csv("data/default_plus_chromatic_features_1059_tracks.txt", col_names = FALSE)
+coord = c(ncol(music) - 1, ncol(music))
+colnames(music)[coord] = c("lat", "lon")
 ```
 
 ```{r}
@@ -21,8 +22,8 @@ n = 100
 explain_var = rep(NA, n)
 sil = rep(NA, n)
 for (i in 1:n) {
-  clust = kmeans(music[, -c(69:70)], i, iter.max = 100)
-  sil[i] = mean(silhouette(clust$cluster, dist(x = music[, -c(69:70)])))
+  clust = kmeans(music[, -coord], i, iter.max = 100)
+  sil[i] = mean(silhouette(clust$cluster, dist(x = music[, -coord])))
   explain_var[i] = clust$tot.withinss / clust$totss
 }
 par(mar=c(5, 4, 4, 6))
@@ -35,7 +36,8 @@ mtext("Average Silhouette width", side = 4, line = 3)
 
 ```{r}
 library(factoextra)
-hclust_model = agnes(x = music[, -c(69:70)], method = "ward")
+library(cluster)
+hclust_model = agnes(x = music[, -coord], method = "ward")
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, main = "hclust", horiz = T, ylab = "Height", show_labels = F)
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "circular", main = "hclust", ylab = "Height", show_labels = F)
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "phylogenic", main = "hclust", ylab = "Height", show_labels = F)
@@ -49,9 +51,9 @@ n = 30
 BIC = rep(NA, n)
 sil = rep(NA, n)
 for (i in 1:n) {
-  model = Mclust(music[, -c(69:70)], G = i, model = "EII")
+  model = Mclust(music[, -coord], G = i, model = "EII")
   BIC[i] = model$bic
-  sil[i] = mean(silhouette(model$classification, dist(x = music[, -c(69:70)])))
+  sil[i] = mean(silhouette(model$classification, dist(x = music[, -coord])))
 }
 par(mar=c(5, 4, 4, 6))
 plot(1:n, BIC, type = "b", main = "plot_title", xlab = "Number of Clusters", ylab = "BIC")
@@ -62,6 +64,14 @@ mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
 ```{r}
-fpc::clusterboot(dist(music[, -c(69:70)]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
+fpc::clusterboot(dist(music[, -coord]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
+```
+```{r}
+cc = model$classification
+index = cc %in% c(1, 2, 5, 16)
+plot_data = data.frame(clust = cc[index], lon = music$lon[index], lat = music$lat[index])
+ggplot(plot_data, aes(x = lon, y = lat, color = factor(clust)))+
+  geom_jitter(width = 4, height = 4, alpha = 0.5)+
+  theme_bw()
 ```
 
