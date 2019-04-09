@@ -1,0 +1,52 @@
+---
+title: "Dimension Reduction"
+author: "Michael Valancius"
+date: "April 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+music = read_csv("data/default_features_1059_tracks.txt", col_names = FALSE)
+colnames(music)[69:70] = c("lat", "lon")
+music$lon = as.factor(music$lon)
+music$lat = as.factor(music$lat)
+
+music = music %>% unite(loc, c(lat, lon))
+
+
+
+```
+
+```{r}
+### PCA
+library(ggfortify)
+
+pca = prcomp(music[,c(-69, -70)])
+
+autoplot(pca, data = music, colour = "loc")
+
+```
+```{r}
+screeplot(pca, type = "l", npcs = 15, main = "Screeplot of the first 15 PCs")
+```
+```{r}
+cumpro <- cumsum(pca$sdev^2 / sum(pca$sdev^2))
+plot(cumpro[0:30], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+```
+
+```{r}
+library(Rtsne)
+
+tsne <- Rtsne(music[,-69], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+
+plot(tsne$Y, main="tsne")
+text(tsne$Y, labels=music, col=colors[train$label])
+```
+
