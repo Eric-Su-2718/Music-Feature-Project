@@ -1,0 +1,139 @@
+---
+title: "Preliminary Analysis"
+author: "Andy Cooper"
+date: "4/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggmap)
+library(sp)
+library(rworldmap)
+library(rworldxtra)
+```
+
+
+```{r}
+cnames <- paste0("Feature_", 1:68)
+music_default <- read_csv("data/default_features_1059_tracks.txt",
+                          col_names = c(cnames, "lat", "lon"))
+```
+
+```{r}
+#Use API key
+#register_google(key = "AIzaSyDtZu5X7qh56z1wgW34F1jK_gSLVntw57w")
+```
+
+
+```{r}
+map_music <- get_map(location = c(lon = mean(music_default$lon), 
+                                  lat = mean(music_default$lat)),
+                     zoom = 3, 
+                     maptype = "satellite", 
+                     scale = "auto")
+```
+
+```{r}
+map_music <- get_map(location = c(min(music_default$lon) - 5,
+                                  min(music_default$lat) - 5,
+                                  max(music_default$lon) + 5,
+                                  max(music_default$lat + 5)),
+                     maptype = "satellite", 
+                     scale = "auto")
+```
+
+
+```{r}
+ggmap(map_music) +
+  geom_point(aes(x = lon, y = lat),
+             data = music_default,
+             colour = "red", 
+             fill = "red",
+             alpha = 0.8,
+             size = 3)
+```
+
+
+```{r}
+music_default_pts <- music_default %>% 
+  group_by(lat, lon) %>% 
+  mutate(count = n()) %>% 
+  select(lat, lon, count)
+```
+
+
+```{r}
+ggmap(map_music) +
+  geom_point(aes(x = lon, y = lat, size = count),
+             data = music_default_pts,
+             colour = "red", 
+             fill = "red",
+             alpha = 0.8) + 
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) + 
+  labs(title = "Geographic Origins of 1,059 Songs in Music Dataset", 
+       x = "Point size indicates the number of songs from that country")
+
+ggsave("music_map_title.png")
+```
+
+```{r}
+ggmap(map_music, extent = "device") +
+  geom_point(aes(x = lon, y = lat, size = count),
+             data = music_default_pts,
+             colour = "red", 
+             fill = "red",
+             alpha = 0.8) + 
+    theme(legend.position = "none")
+
+ggsave("music_map_no_title.png")
+```
+
+
+```{r}
+coords2continent = function(points)
+{  
+  #countriesSP <- getMap(resolution='low')
+  countriesSP <- getMap(resolution='high') #you could use high res map from rworldxtra if you were concerned about detail
+  
+  # converting points to a SpatialPoints object
+  # setting CRS directly to that from rworldmap
+  pointsSP = SpatialPoints(points, proj4string=CRS(proj4string(countriesSP)))  
+
+
+  # use 'over' to get indices of the Polygons object containing each point 
+  indices = over(pointsSP, countriesSP)
+
+  #indices$continent   # returns the continent (6 continent model)
+  indices$REGION   # returns the continent (7 continent model)
+  #indices$ADMIN  #returns country name
+  #indices$ISO3 # returns the ISO3 code 
+}
+```
+
+```{r}
+get_continents <- coords2continent(music_default[,c(70, 69)])
+music_default[is.na(get_continents), c(69, 70)] %>% unique()
+```
+
+```{r}
+music_default$continent <- get_continents
+music_default %>% 
+  filter()
+music_default[music_default$lat == 14.91 & 
+                music_default$lon == -23.51, "continent"] <- "Africa"
+music_default[music_default$lat == 34.03 & 
+                music_default$lon == -6.85, "continent"] <- "Africa"
+music_default[music_default$lat == 14.66 & 
+                music_default$lon == -17.41, "continent"] <- "Africa"
+```
+
+```{r}
+write_csv(music_default, "music_default_with_continents")
+```
+
+
