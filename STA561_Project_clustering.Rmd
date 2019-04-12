@@ -10,11 +10,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-```{r, message=FALSE}
+```{r, warning = FALSE, message=FALSE}
 library(readr)
-music = read_csv("data/default_plus_chromatic_features_1059_tracks.txt", col_names = FALSE)
-coord = c(ncol(music) - 1, ncol(music))
-colnames(music)[coord] = c("lat", "lon")
+music = read_csv("data/music_chromatic_with_continents")
+non_music = c(ncol(music) - 2, ncol(music) - 1, ncol(music))
 ```
 
 ```{r}
@@ -22,8 +21,8 @@ n = 100
 explain_var = rep(NA, n)
 sil = rep(NA, n)
 for (i in 1:n) {
-  clust = kmeans(music[, -coord], i, iter.max = 100)
-  sil[i] = mean(silhouette(clust$cluster, dist(x = music[, -coord])))
+  clust = kmeans(music[, -non_music], i, iter.max = 100)
+  sil[i] = mean(silhouette(clust$cluster, dist(x = music[, -non_music])))
   explain_var[i] = clust$tot.withinss / clust$totss
 }
 par(mar=c(5, 4, 4, 6))
@@ -37,7 +36,7 @@ mtext("Average Silhouette width", side = 4, line = 3)
 ```{r}
 library(factoextra)
 library(cluster)
-hclust_model = agnes(x = music[, -coord], method = "ward")
+hclust_model = agnes(x = music[, -non_music], method = "ward")
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, main = "hclust", horiz = T, ylab = "Height", show_labels = F)
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "circular", main = "hclust", ylab = "Height", show_labels = F)
 fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "phylogenic", main = "hclust", ylab = "Height", show_labels = F)
@@ -51,9 +50,9 @@ n = 30
 BIC = rep(NA, n)
 sil = rep(NA, n)
 for (i in 1:n) {
-  model = Mclust(music[, -coord], G = i, model = "EII")
+  model = Mclust(music[, -non_music], G = i, model = "EII")
   BIC[i] = model$bic
-  sil[i] = mean(silhouette(model$classification, dist(x = music[, -coord])))
+  sil[i] = mean(silhouette(model$classification, dist(x = music[, -non_music])))
 }
 par(mar=c(5, 4, 4, 6))
 plot(1:n, BIC, type = "b", main = "plot_title", xlab = "Number of Clusters", ylab = "BIC")
@@ -64,8 +63,9 @@ mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
 ```{r}
-fpc::clusterboot(dist(music[, -coord]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
+fpc::clusterboot(dist(music[, -non_music]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
 ```
+
 ```{r}
 cc = model$classification
 index = cc %in% c(1, 2, 5, 16)
@@ -73,5 +73,48 @@ plot_data = data.frame(clust = cc[index], lon = music$lon[index], lat = music$la
 ggplot(plot_data, aes(x = lon, y = lat, color = factor(clust)))+
   geom_jitter(width = 4, height = 4, alpha = 0.5)+
   theme_bw()
+```
+
+```{r, warning=FALSE, message=FALSE}
+model = Mclust(music[, -non_music], G = 9, model = "EII")
+library(Rtsne)
+tsne <- Rtsne(music[, -non_music], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+```
+
+```{r}
+ggplot()+
+  geom_point(aes(x = tsne$Y[, 1], y = tsne$Y[, 2], color = music$continent), alpha = 0.5) +
+  labs(x = "", y = "", title = "t-SNE plot colored by Clusters")+
+  coord_equal()+
+  scale_color_hue(name = "Continent")+
+  theme_bw()
+```
+
+
+```{r}
+model = Mclust(music[, -non_music], G = 5, model = "EII", verbose = FALSE)
+ggplot()+
+  geom_point(aes(x = tsne$Y[, 1], y = tsne$Y[, 2], color = factor(model$classification)), alpha = 0.5) +
+  labs(x = "", y = "", title = "t-SNE plot colored by Clusters")+
+  coord_equal()+
+  scale_color_hue(name = "Cluster")+
+  theme_bw()
+```
+
+```{r}
+model = Mclust(music[, -non_music], G = 9, model = "EII", verbose = FALSE)
+ggplot()+
+  geom_point(aes(x = tsne$Y[, 1], y = tsne$Y[, 2], color = factor(model$classification)), alpha = 0.5) +
+  labs(x = "", y = "", title = "t-SNE plot colored by Clusters")+
+  coord_equal()+
+  scale_color_hue(name = "Cluster")+
+  theme_bw()
+```
+
+```{r}
+music %>% 
+  mutate(cluster = model$classification) %>%
+  group_by(cluster) %>%
+  summarise(Continent = names(which.max(table(continent))))
 ```
 
