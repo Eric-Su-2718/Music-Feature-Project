@@ -16,10 +16,17 @@ library(rworldxtra)
 
 
 ```{r}
-cnames <- paste0("Feature_", 1:68)
+cnames_default <- paste0("Feature_", 1:68)
 music_default <- read_csv("data/default_features_1059_tracks.txt",
-                          col_names = c(cnames, "lat", "lon"))
+                          col_names = c(cnames_default, "lat", "lon"))
 ```
+
+```{r}
+cnames_chrome <- paste0("Feature_", 1:116)
+music_chrome <- read_csv("data/default_plus_chromatic_features_1059_tracks.txt",
+                         col_names = c(cnames_chrome, "lat", "lon"))
+```
+
 
 ```{r}
 #Use API key
@@ -28,31 +35,13 @@ music_default <- read_csv("data/default_features_1059_tracks.txt",
 
 
 ```{r}
-map_music <- get_map(location = c(lon = mean(music_default$lon), 
-                                  lat = mean(music_default$lat)),
-                     zoom = 3, 
-                     maptype = "satellite", 
+map_music <- get_map(location = c(min(music_default$lon) - 1,
+                                  min(music_default$lat),
+                                  max(music_default$lon) + 1,
+                                  max(music_default$lat)),
+                     maptype = "watercolor",
+                     source = "stamen",
                      scale = "auto")
-```
-
-```{r}
-map_music <- get_map(location = c(min(music_default$lon) - 5,
-                                  min(music_default$lat) - 5,
-                                  max(music_default$lon) + 5,
-                                  max(music_default$lat + 5)),
-                     maptype = "satellite", 
-                     scale = "auto")
-```
-
-
-```{r}
-ggmap(map_music) +
-  geom_point(aes(x = lon, y = lat),
-             data = music_default,
-             colour = "red", 
-             fill = "red",
-             alpha = 0.8,
-             size = 3)
 ```
 
 
@@ -78,7 +67,7 @@ ggmap(map_music) +
   labs(title = "Geographic Origins of 1,059 Songs in Music Dataset", 
        x = "Point size indicates the number of songs from that country")
 
-ggsave("music_map_title.png")
+ggsave("plots/music_map_title.png")
 ```
 
 ```{r}
@@ -122,8 +111,6 @@ music_default[is.na(get_continents), c(69, 70)] %>% unique()
 
 ```{r}
 music_default$continent <- get_continents
-music_default %>% 
-  filter()
 music_default[music_default$lat == 14.91 & 
                 music_default$lon == -23.51, "continent"] <- "Africa"
 music_default[music_default$lat == 34.03 & 
@@ -133,7 +120,75 @@ music_default[music_default$lat == 14.66 &
 ```
 
 ```{r}
-write_csv(music_default, "music_default_with_continents")
+write_csv(music_default, "data/music_default_with_continents")
+```
+
+```{r}
+music_chrome$continent <- get_continents
+music_chrome[music_chrome$lat == 14.91 & 
+                music_chrome$lon == -23.51, "continent"] <- "Africa"
+music_chrome[music_chrome$lat == 34.03 & 
+                music_chrome$lon == -6.85, "continent"] <- "Africa"
+music_chrome[music_chrome$lat == 14.66 & 
+                music_chrome$lon == -17.41, "continent"] <- "Africa"
+```
+
+```{r}
+write_csv(music_chrome, "data/music_chromatic_with_continents")
 ```
 
 
+```{r}
+coords2country = function(points)
+{  
+  #countriesSP <- getMap(resolution='low')
+  countriesSP <- getMap(resolution='high') #you could use high res map from rworldxtra if you were concerned about detail
+  
+  # converting points to a SpatialPoints object
+  # setting CRS directly to that from rworldmap
+  pointsSP = SpatialPoints(points, proj4string=CRS(proj4string(countriesSP)))  
+
+
+  # use 'over' to get indices of the Polygons object containing each point 
+  indices = over(pointsSP, countriesSP)
+
+  #indices$continent   # returns the continent (6 continent model)
+  #indices$REGION   # returns the continent (7 continent model)
+  indices$ADMIN  #returns country name
+  #indices$ISO3 # returns the ISO3 code 
+}
+```
+
+```{r}
+get_countries <- coords2country(music_default[,c(70, 69)])
+music_default[is.na(get_countries), c(69, 70)] %>% unique()
+```
+
+```{r}
+music_default$country <- get_countries
+music_default[music_default$lat == 14.91 & 
+                music_default$lon == -23.51, "country"] <- "Cape Verde"
+music_default[music_default$lat == 34.03 & 
+                music_default$lon == -6.85, "country"] <- "Morocco"
+music_default[music_default$lat == 14.66 & 
+                music_default$lon == -17.41, "country"] <- "Senegal"
+```
+
+```{r}
+write_csv(music_default, "data/music_default_with_locations")
+```
+
+
+```{r}
+music_chrome$country <- get_countries
+music_chrome[music_chrome$lat == 14.91 & 
+                music_chrome$lon == -23.51, "country"] <- "Cape Verde"
+music_chrome[music_chrome$lat == 34.03 & 
+                music_chrome$lon == -6.85, "country"] <- "Morocco"
+music_chrome[music_chrome$lat == 14.66 & 
+                music_chrome$lon == -17.41, "country"] <- "Senegal"
+```
+
+```{r}
+write_csv(music_default, "data/music_chrome_with_locations")
+```
