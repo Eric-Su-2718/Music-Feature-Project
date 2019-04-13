@@ -1,0 +1,90 @@
+---
+title: "Dimension Reduction"
+author: "Michael Valancius"
+date: "April 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r data}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(Rtsne)
+library(ggfortify)
+library(keras)
+set.seed(29)
+music = read.csv("data/music_chromatic_with_continents")
+
+
+
+
+```
+
+```{r pca}
+### PCA
+
+
+pca = prcomp(music[,-c(117, 118, 119)])
+
+autoplot(pca, data = music, colour = "continent")
+
+```
+```{r}
+screeplot(pca, type = "l", npcs = 15, main = "Screeplot of the first 15 PCs")
+```
+```{r}
+cumpro <- cumsum(pca$sdev^2 / sum(pca$sdev^2))
+plot(cumpro[0:30], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+```
+
+```{r tsne}
+
+
+tsne <- Rtsne(music[,-c(117, 118, 119)], dims = 2, perplexity=30, verbose=FALSE, max_iter = 800)
+### Converting to a dataframe
+tsne_results = as.data.frame(tsne$Y)
+### Adding labels
+tsne_results$continent = music$continent
+
+
+### Plotting the results
+ggplot(data = tsne_results, aes(y = V1, x = V2, col = continent)) + geom_point()
+
+```
+
+```{r autoencoder}
+X_train = music %>% select(-c(lat, lon, continent)) %>% as.matrix()
+
+model <- keras_model_sequential()
+model %>%
+  layer_dense(units = 6, activation = "tanh", input_shape = ncol(X_train)) %>%
+  layer_dense(units = 2, activation = "tanh", name = "bottleneck") %>%
+  layer_dense(units = 6, activation = "tanh") %>%
+  layer_dense(units = ncol(X_train))
+
+model %>% compile(
+  loss = "mean_squared_error", 
+  optimizer = "adam"
+)
+
+model %>% fit(
+  x = X_train, 
+  y = X_train, 
+  epochs = 2000,
+  verbose = 0
+)
+
+intermediate_layer_model <- keras_model(inputs = model$input, outputs = get_layer(model, "bottleneck")$output)
+
+intermediate_output <- predict(intermediate_layer_model, X_train)
+
+ggplot(data.frame(PC1 = intermediate_output[,1], PC2 = intermediate_output[,2]), aes(x = PC1, y = PC2, col = music$continent)) + geom_point()
+
+write.csv(intermediate_output, "autoencoder_data")
+```
+
+
