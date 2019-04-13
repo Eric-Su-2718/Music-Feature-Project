@@ -1,0 +1,48 @@
+---
+title: "Neural Network Analysis"
+author: "Andy Cooper"
+date: "4/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(neuralnet)
+library(knitr)
+```
+
+
+```{r}
+music_chrome <- read_csv("data/music_chromatic_with_continents")
+music_df <- music_chrome %>% 
+  mutate(continent = as.factor(continent)) %>% 
+  select(-lat, -lon)
+```
+
+```{r}
+ind_train <- sample(1:nrow(music_df), nrow(music_df)*0.7)
+ind_test <- !(1:nrow(music_df) %in% ind_train)
+music_train <- music_df[ind_train,]
+music_test <- music_df[ind_test, ]
+```
+
+
+```{r}
+music_nn <- neuralnet(continent~.,
+             data = music_train, 
+             hidden = 5,
+             linear.output = F)
+```
+
+```{r}
+pred <- predict(music_nn, music_test)
+table(music_test$continent, 
+      levels(music_test$continent)[apply(pred, 1, which.max)]) %>% 
+  kable()
+```
+
+```{r}
+pred_vals <- levels(music_test$continent)[apply(pred, 1, which.max)]
+mean(pred_vals == music_test$continent)
+```
+
