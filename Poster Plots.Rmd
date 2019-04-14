@@ -1,0 +1,194 @@
+---
+title: "poster plots"
+author: "Andy Cooper"
+date: "4/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggmap)
+library(sp)
+library(rworldmap)
+library(rworldxtra)
+library(knitr)
+```
+
+```{r}
+music <- read_csv("data/music_chrome_with_locations")
+```
+
+#First plot: Map Plot
+
+```{r}
+#Use API key
+#register_google(key = "AIzaSyDtZu5X7qh56z1wgW34F1jK_gSLVntw57w")
+```
+
+
+```{r}
+map_music <- get_map(location = c(min(music$lon) - 1,
+                                  min(music$lat),
+                                  max(music$lon) + 1,
+                                  max(music$lat)),
+                     maptype = "watercolor",
+                     source = "stamen",
+                     scale = "auto")
+```
+
+```{r}
+music_pts <- music %>% 
+  group_by(lat, lon) %>% 
+  mutate(count = n()) %>% 
+  select(lat, lon, count)
+```
+
+
+```{r}
+ggmap(map_music) +
+  geom_point(aes(x = lon, y = lat, size = count),
+             data = music_pts,
+             colour = "red", 
+             fill = "red",
+             alpha = 0.8) + 
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) + 
+  labs(title = "Geographic Origins of 1,059 Songs in Music Dataset", 
+       x = "Point size indicates the number of songs from that country")
+
+ggsave("plots/music_map_title.png")
+```
+
+#Second plot: t-sne plot
+
+```{r}
+library(tidyverse)
+library(mclust)
+library(Rtsne)
+library(cluster)
+```
+
+```{r}
+non_music <- (ncol(music) - 3):ncol(music)
+```
+
+```{r, warning=FALSE, message=FALSE}
+#model = Mclust(music[, -non_music], G = 9, model = "EII", verbose = FALSE)
+tsne <- Rtsne(music[, -non_music], 
+              dims = 2, 
+              perplexity = 30, 
+              verbose = FALSE, 
+              max_iter = 500)
+```
+
+```{r}
+ggplot()+
+  geom_point(aes(x = tsne$Y[, 1], y = tsne$Y[, 2], color = music$continent), alpha = 0.8) +
+  labs(x = "", y = "", title = "t-SNE Plot Colored by Continent")+
+  coord_equal()+
+  scale_color_hue(name = "Continent")+
+  theme_bw()
+ggsave("plots/t_sne1.png")
+```
+
+#Third plot: t-sne cluster plot
+
+```{r}
+model_5 <- Mclust(music[, -non_music], G = 5, model = "EII", verbose = FALSE)
+```
+
+```{r}
+ggplot()+
+  geom_point(aes(x = tsne$Y[, 1], y = tsne$Y[, 2], col = factor(model_5$classification)), alpha = 0.8) +
+  labs(x = "", y = "", title = "t-SNE Plot Colored 5-Cluster GMM")+
+  coord_equal()+
+  #scale_color_hue(name = "Cluster")+
+  scale_color_brewer(palette="Dark2") +
+  theme_bw() + 
+  theme(legend.position = "none")
+ggsave("plots/t_sne2.png")
+```
+
+#Fourth plot: map plot with clusters
+
+```{r}
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+music_2 <- music %>%
+  mutate(class = model_5$classification %>% factor()) %>% 
+  group_by(country) %>% 
+  mutate(most_common = getmode(class))
+```
+
+```{r}
+music_2_pts <- music_2 %>% 
+  group_by(lat, lon) %>% 
+  mutate(count = n()) %>% 
+  select(lat, lon, count, most_common)
+```
+
+```{r}
+ggmap(map_music) +
+  geom_point(aes(x = lon, y = lat, size = count, col = most_common),
+             data = music_2_pts,
+             alpha = 0.8) + 
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_color_hue(name = "Cluster") +
+  #scale_color_brewer(palette = "Dark2") +
+  theme_bw() + 
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  labs(x = "Points colored by most frequent cluster classification")
+ggsave("plots/most_common_map_plot.png")
+```
+
+#Fifth plot: Purity table
+
+```{r}
+cc <- model_5$classification
+```
+
+```{r}
+music %>% 
+  mutate(cluster = model_5$classification) %>%
+  group_by(cluster) %>%
+  summarise(Continent = names(which.max(table(continent))))
+```
+
+```{r}
+music %>% 
+  mutate(cluster = model_5$classification) %>%
+  group_by(cluster) %>%
+  summarise(`Country 1` = names(which.max(table(country))),
+            `Country 2` = names(table(country) %>% sort(decreasing = T) %>% .[2]),
+            `Country 3` = names(table(country) %>% sort(decreasing = T) %>% .[3]),
+            `Country 4` = names(table(country) %>% sort(decreasing = T) %>% .[4]),
+            `Country 5` = names(table(country) %>% sort(decreasing = T) %>% .[5]))
+```
+
+```{r}
+music %>%
+  mutate(cluster = model_5$classification) %>%
+  rename(Country = country) %>% 
+  group_by(Country) %>%
+  summarise(Purity = sort(table(cluster) / length(cluster), 
+                          decreasing = T)[1]) %>% 
+  arrange(desc(Purity)) %>% 
+  head(10) %>% 
+  kable()
+```
+
+
