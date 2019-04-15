@@ -18,7 +18,7 @@ music = read_csv("data/music_chrome_with_locations")
 non_music = (ncol(music) - 3):ncol(music)
 ```
 
-```{r}
+```{r, eval=FALSE}
 n = 100
 explain_var = rep(NA, n)
 sil = rep(NA, n)
@@ -35,7 +35,7 @@ axis(side = 4)
 mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
-```{r}
+```{r, eval=FALSE}
 library(factoextra)
 library(cluster)
 hclust_model = agnes(x = music[, -non_music], method = "ward")
@@ -46,7 +46,7 @@ fviz_dend(hclust_model, cex = 0.5, k = 10, lwd = 0.8, type = "phylogenic", main 
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 n = 30
 BIC = rep(NA, n)
 sil = rep(NA, n)
@@ -63,11 +63,11 @@ axis(side = 4)
 mtext("Average Silhouette width", side = 4, line = 3)
 ```
 
-```{r}
+```{r, eval=FALSE}
 fpc::clusterboot(dist(music[, -non_music]), B = 1000, bootmethod = "boot", clustermethod = kmeansCBI, k = 5, count = F)
 ```
 
-```{r}
+```{r, eval=FALSE}
 cc = model$classification
 index = cc %in% c(1, 2, 5, 16)
 plot_data = data.frame(clust = cc[index], lon = music$lon[index], lat = music$lat[index])
@@ -110,6 +110,7 @@ ggplot()+
   scale_color_hue(name = "Cluster")+
   theme_bw()
 ```
+
 ```{r}
 cc = model$classification
 plot_data = data.frame(clust = cc, lon = music$lon, lat = music$lat)
@@ -124,6 +125,7 @@ music %>%
   group_by(cluster) %>%
   summarise(Continent = names(which.max(table(continent))))
 ```
+
 ```{r}
 music %>% 
   mutate(cluster = model$classification) %>%
@@ -134,10 +136,69 @@ music %>%
             `Country 4` = names(table(country) %>% sort(decreasing = T) %>% .[4]),
             `Country 5` = names(table(country) %>% sort(decreasing = T) %>% .[5]))
 ```
+
 ```{r}
 music %>%
   mutate(cluster = model$classification) %>%
   group_by(country) %>%
   summarise(Purity = sort(table(cluster) / length(cluster), decreasing = T)[1])
+```
+
+```{r}
+autoencoder_data = read_csv("autoencoder_data")
+
+ggplot()+
+  geom_point(aes(x = autoencoder_data$V1, y = autoencoder_data$V2, color = music$continent), alpha = 0.5) +
+  labs(x = "", y = "", title = "Autoencoder plot colored by Continents")+
+  coord_equal()+
+  scale_color_hue(name = "Continent")+
+  theme_bw()
+
+ggplot()+
+  geom_point(aes(x = autoencoder_data$V1, y = autoencoder_data$V2, 
+                 color = factor(model$classification)), alpha = 0.5) +
+  labs(x = "", y = "", title = "Autoencoder plot colored by Clusters")+
+  coord_equal()+
+  scale_color_hue(name = "Cluster")+
+  theme_bw()
+```
+
+```{r}
+model = Mclust(autoencoder_data[, 2:3], G = 9, model = "EII", verbose = FALSE)
+ggplot()+
+  geom_point(aes(x = autoencoder_data$V1, y = autoencoder_data$V2, 
+                 color = factor(model$classification)), alpha = 0.5) +
+  labs(x = "", y = "", title = "Autoencoder plot colored by Clusters")+
+  coord_equal()+
+  scale_color_hue(name = "Cluster")+
+  theme_bw()
+```
+```{r}
+music %>% 
+  mutate(cluster = model$classification) %>%
+  group_by(cluster) %>%
+  summarise(Continent = names(which.max(table(continent))))
+```
+
+```{r}
+music %>% 
+  mutate(cluster = model$classification) %>%
+  group_by(cluster) %>%
+  summarise(`Country 1` = names(which.max(table(country))),
+            `Country 2` = names(table(country) %>% sort(decreasing = T) %>% .[2]),
+            `Country 3` = names(table(country) %>% sort(decreasing = T) %>% .[3]),
+            `Country 4` = names(table(country) %>% sort(decreasing = T) %>% .[4]),
+            `Country 5` = names(table(country) %>% sort(decreasing = T) %>% .[5]))
+```
+
+```{r}
+model = Mclust(autoencoder_data[, 2:3], G = 5, model = "EII", verbose = FALSE)
+purity = music %>%
+  mutate(cluster = model$classification) %>%
+  group_by(country) %>%
+  summarise(Purity = sort(table(cluster) / length(cluster), decreasing = T)[1]) %>%
+  arrange(desc(Purity))
+colnames(purity)[1] = "Country"
+knitr::kable(purity %>% head(5), digits = 2, caption = "Countries with Highest Purity")
 ```
 
