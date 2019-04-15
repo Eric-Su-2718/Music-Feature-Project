@@ -58,12 +58,15 @@ ggplot(data = tsne_results, aes(y = V1, x = V2, col = continent)) + geom_point()
 
 ```{r autoencoder}
 X_train = music %>% select(-c(lat, lon, continent)) %>% as.matrix()
+dims = seq(2, 30, by = 2)
+mse = rep(0, length(dims))
 
+for(k in 1:length(dims)){
 model <- keras_model_sequential()
 model %>%
-  layer_dense(units = 6, activation = "tanh", input_shape = ncol(X_train)) %>%
-  layer_dense(units = 2, activation = "tanh", name = "bottleneck") %>%
-  layer_dense(units = 6, activation = "tanh") %>%
+  layer_dense(units = 30, activation = "tanh", input_shape = ncol(X_train)) %>%
+  layer_dense(units = dims[k], activation = "tanh", name = "bottleneck") %>%
+  layer_dense(units = 30, activation = "tanh") %>%
   layer_dense(units = ncol(X_train))
 
 model %>% compile(
@@ -78,13 +81,47 @@ model %>% fit(
   verbose = 0
 )
 
+mse[k] <- evaluate(model, X_train, X_train)
+
+}
+
+mse_df = data.frame(mse = mse, dims = dims)
+ggplot(mse_df, aes(y = mse, x = dims)) + geom_point() + geom_line()
+
+
+
+
+```
+
+```{r}
+model <- keras_model_sequential()
+model %>%
+  layer_dense(units = 30, activation = "tanh", input_shape = ncol(X_train)) %>%
+  layer_dense(units = 10, activation = "tanh", name = "bottleneck") %>%
+  layer_dense(units = 30, activation = "tanh") %>%
+  layer_dense(units = ncol(X_train))
+
+model %>% compile(
+  loss = "mean_squared_error", 
+  optimizer = "adam"
+)
+
+model %>% fit(
+  x = X_train, 
+  y = X_train, 
+  epochs = 2000,
+  verbose = 0
+)
+
+
 intermediate_layer_model <- keras_model(inputs = model$input, outputs = get_layer(model, "bottleneck")$output)
 
 intermediate_output <- predict(intermediate_layer_model, X_train)
 
-ggplot(data.frame(PC1 = intermediate_output[,1], PC2 = intermediate_output[,2]), aes(x = PC1, y = PC2, col = music$continent)) + geom_point()
 
-write.csv(intermediate_output, "autoencoder_data")
+
+write.csv(intermediate_output, "autoencoder_data_10_dim")
 ```
+
 
 
