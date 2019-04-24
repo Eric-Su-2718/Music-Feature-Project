@@ -34,11 +34,15 @@ autoplot(pca, data = music, colour = "continent")
 
 ```
 ```{r}
-screeplot(pca, type = "l", npcs = 15, main = "Screeplot of the first 15 PCs")
+screeplot(pca, type = "l", npcs = 15, main = "Screeplot of the first 15 Principal Components", xlab = "Component")
 ```
 ```{r}
 cumpro <- cumsum(pca$sdev^2 / sum(pca$sdev^2))
-plot(cumpro[0:30], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+cumpro_df = data.frame(cumpro = cumpro, index = seq(1:length(cumpro)))
+
+
+ggplot(cumpro_df, aes(x = index, y = cumpro)) + geom_point() + geom_line() + ggtitle("Cumulative Variance Plot") + xlab("PC #") + ylab("Percent of Variance Explained")
+
 ```
 
 ```{r tsne}
@@ -122,6 +126,29 @@ intermediate_output <- predict(intermediate_layer_model, X_train)
 
 write.csv(intermediate_output, "autoencoder_data_10_dim")
 ```
+
+```{r}
+model <- keras_model_sequential()
+model %>%
+  layer_dense(units = 6, activation = "tanh", input_shape = ncol(X_train)) %>%
+  layer_dense(units = 2, activation = "tanh", name = "bottleneck") %>%
+  layer_dense(units = 6, activation = "tanh") %>%
+  layer_dense(units = ncol(X_train))
+
+
+intermediate_layer_model <- keras_model(inputs = model$input, outputs = get_layer(model, "bottleneck")$output)
+
+intermediate_output <- predict(intermediate_layer_model, X_train)
+
+intermediate_output <- data.frame(dim1 = intermediate_output[,1], dim2 = intermediate_output[,2], continent = music$continent)
+
+ggplot(intermediate_output, aes(y = dim2, x = dim1, colour = continent)) + geom_point()
+
+model %>% plot_model(, to_file = "model.png")
+
+c(116, 6, 2, 6, 116) %>% plot_deepviz()
+```
+
 
 
 
