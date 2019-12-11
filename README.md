@@ -4,6 +4,6 @@ This repo contains the code and reports for my collaborative final project on cl
 Methods used include:
 * K-means clustering
 * Hierarchical clustering
-* Gaussian mixture model for clustering
+* Gaussian mixture model (GMM) for clustering
 * Principal component analysis (PCA)
 * Autoencoder
