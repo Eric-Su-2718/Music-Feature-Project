@@ -6,5 +6,6 @@ Methods used include:
 * Hierarchical clustering
 * Gaussian mixture model (GMM) for clustering
 * Principal component analysis (PCA)
+* t-SNE
 * Autoencoder
 
