@@ -7,3 +7,4 @@ Methods used include:
 * Gaussian mixture model (GMM) for clustering
 * Principal component analysis (PCA)
 * Autoencoder
+![Test Image 1](https://github.com/Eric-Su-2718/Music-Feature-Project/blob/master/STA561_Final_Project_Poster.pdf)
